@@ -12,7 +12,7 @@ describe DumpSniffer do
           args: ['-t', test_fixture_path('simple.sql')]
         ).run
       ).to eq(
-        <<-EOS
+        <<~EOS
           customers
           employees
           offices
