@@ -9,9 +9,10 @@ module DumpSniffer
 
     def run
       options = parse_commandline_opts
+      dump_file = DumpFile.new(options.dump_file)
 
-      return extract_schema_from_dump(options.dump_file) if options.extract_schema
-      return extract_table_names_from_dump(options.dump_file).join("\n") if options.extract_table_names
+      return dump_file.schema if options.extract_schema
+      return dump_file.table_names.join("\n") if options.extract_table_names
     end
 
     private
@@ -55,16 +56,24 @@ module DumpSniffer
       puts opt_parser
       exit
     end
+  end
 
-    def extract_table_names_from_dump(dump_file)
-      create_statements = File.readlines(dump_file).grep(/CREATE TABLE `.*?`/i)
+  class DumpFile
+    attr_reader :fname
+
+    def initialize(fname)
+      @fname = fname
+    end
+
+    def table_names
+      create_statements = File.readlines(fname).grep(/CREATE TABLE `.*?`/i)
       create_statements.map do |statement|
         statement.sub(/CREATE TABLE `(.*?)`.*$/, '\1').chomp
       end
     end
 
-    def extract_schema_from_dump(dump_file)
-      File.read(dump_file)
+    def schema
+      File.read(fname)
         .scan(/^DROP TABLE .*?;|^CREATE TABLE.*?;/m)
         .join("\n\n")
     end
