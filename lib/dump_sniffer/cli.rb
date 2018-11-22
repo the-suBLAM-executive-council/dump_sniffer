@@ -1,23 +1,60 @@
+require 'optparse'
+require 'ostruct'
+
 module DumpSniffer
   class CLI
-    def initialize(args: nil)
+    def initialize(args: [])
       @args = args
-      @dump_file = args.last
     end
 
     def run
-      if args.first == '-s'
-        extract_schema_from_dump(dump_file)
-      elsif args.first == '-t'
-        extract_table_names_from_dump(dump_file).join("\n")
-      else
-        raise "Unknown options"
-      end
+      options = parse_commandline_opts
+
+      return extract_schema_from_dump(options.dump_file) if options.extract_schema
+      return extract_table_names_from_dump(options.dump_file).join("\n") if options.extract_table_names
     end
 
     private
 
-    attr_reader :args, :dump_file
+    attr_reader :args
+
+    def parse_commandline_opts
+      options = OpenStruct.new
+
+      opt_parser = OptionParser.new do |opts|
+        opts.banner = "Usage: dump_sniffer [OPTIONS] dump_file.sql"
+
+        opts.on('-s', '--schema-only', 'Extract the schema only. The table DROPs and CREATEs. No data') do
+          options.extract_schema = true
+        end
+
+        opts.on('-t', '--table-names', 'List the table names in the dump') do
+          options.extract_table_names = true
+        end
+
+        opts.on('-h', '--help', 'Prints this help') do
+          usage(opts)
+        end
+      end
+
+      begin
+        opt_parser.parse!(args)
+      rescue OptionParser::InvalidOption
+        usage(opt_parser)
+      end
+
+      options.dump_file = args.first
+      unless File.exists?(options.dump_file.to_s)
+        usage(opt_parser)
+      end
+
+      options
+    end
+
+    def usage(opt_parser)
+      puts opt_parser
+      exit
+    end
 
     def extract_table_names_from_dump(dump_file)
       create_statements = File.readlines(dump_file).grep(/CREATE TABLE `.*?`/i)
