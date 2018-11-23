@@ -8,7 +8,7 @@ module DumpSniffer
     end
 
     def run
-      options = parse_commandline_opts
+      options = CliArgParser.new(args).perform
       dump_file = DumpFile.new(options.dump_file)
 
       return dump_file.schema if options.extract_schema
@@ -19,7 +19,39 @@ module DumpSniffer
 
     attr_reader :args
 
-    def parse_commandline_opts
+  end
+
+  class DumpFile
+    attr_reader :fname
+
+    def initialize(fname)
+      @fname = fname
+    end
+
+    def table_names
+      results = []
+      File.foreach(fname) do |line|
+        next unless line =~ /CREATE TABLE `.*?`/i
+
+        results << line.sub(/CREATE TABLE `(.*?)`.*$/, '\1').chomp
+      end
+
+      results
+    end
+
+    def schema
+      File.read(fname)
+        .scan(/^DROP TABLE .*?;|^CREATE TABLE.*?;/m)
+        .join("\n\n")
+    end
+  end
+
+  class CliArgParser
+    def initialize(args)
+      @args = args
+    end
+
+    def perform
       options = OpenStruct.new
 
       opt_parser = OptionParser.new do |opts|
@@ -52,30 +84,14 @@ module DumpSniffer
       options
     end
 
+    private
+
+    attr_reader :args
+
     def usage(opt_parser)
       puts opt_parser
       exit
     end
   end
 
-  class DumpFile
-    attr_reader :fname
-
-    def initialize(fname)
-      @fname = fname
-    end
-
-    def table_names
-      create_statements = File.readlines(fname).grep(/CREATE TABLE `.*?`/i)
-      create_statements.map do |statement|
-        statement.sub(/CREATE TABLE `(.*?)`.*$/, '\1').chomp
-      end
-    end
-
-    def schema
-      File.read(fname)
-        .scan(/^DROP TABLE .*?;|^CREATE TABLE.*?;/m)
-        .join("\n\n")
-    end
-  end
 end

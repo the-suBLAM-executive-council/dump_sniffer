@@ -45,27 +45,26 @@ describe DumpSniffer do
     end
   end
 
+  def expect_usage_and_exit(&block)
+    expect {
+      expect {
+        block.call
+      }.to raise_error(SystemExit)
+    }.to output(/Usage/).to_stdout
+  end
+
   it 'prints the usage and exits when no dump file is given' do
     cli = DumpSniffer::CLI.new(args: [])
-    expect(cli).to receive(:puts)
-    expect(cli).to receive(:exit)
-    cli.run
+    expect_usage_and_exit { cli.run }
   end
 
   it 'prints the usage and exits when the given dump file doesnt exist' do
     cli = DumpSniffer::CLI.new(args: ['/doesnt/exist.sql'])
-    expect(cli).to receive(:puts)
-    expect(cli).to receive(:exit)
-    cli.run
+    expect_usage_and_exit { cli.run }
   end
 
   it 'prints the usage and exits when unknown options are given' do
     cli = DumpSniffer::CLI.new(args: ['--some --unknown --options'])
-
-    # NOTE: these things get called multiple times, since our stubs stop the
-    # program from 'exit'ing
-    expect(cli).to receive(:puts).at_least(1).times
-    expect(cli).to receive(:exit).at_least(1).times
-    cli.run
+    expect_usage_and_exit { cli.run }
   end
 end
